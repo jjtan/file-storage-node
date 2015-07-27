@@ -1,11 +1,11 @@
 var express = require('express');
 var config = require('./config');
 var fs = require('fs');
-var multiparty = require('multiparty');
 var redis = require('redis');
 var crypto = require('crypto');
 var url = require('url');
 var path = require('path');
+var Busboy = require('busboy');
 
 var app = express();
 var redis_client = redis.createClient();
@@ -49,71 +49,43 @@ app.get('/download', function (req, res) {
 });
 
 app.post('/upload', function (req, res) {
-  var form = new multiparty.Form();
   var filekey = '';
+  var bb = new Busboy({ headers: req.headers });
+  
+  bb.on('file', function(fieldname, file, filename, encoding, mimetype) {
+    console.log('busboy: ' + fieldname + ' ' + filename + ' ' + encoding + ' ' + mimetype);
+    filekey = crypto.createHash('md5').update(filename + (new Date().getTime()) + req.ip).digest('hex');
+    var target_path = filekeyToPath(filekey);
+    
+    redis_client.set('file_name:' + filekey, target_path);
 
-  form.on('part', function (part) {
-    if (!part.filename) {
-      part.resume();
-    } else {
-      console.log('file_name: ' + part.filename);
-    }
+    console.log('Uploading...');
+    file.pipe(fs.createWriteStream(target_path));
+    console.log('Finished uploading');
   });
 
-  form.on('close', function() {
-    res.json({
-      complete: 'ok'
+  bb.on('finish', function () {
+    var is = fs.createReadStream(filekeyToPath(filekey));
+
+    var hash = crypto.createHash('sha1');
+    hash.setEncoding('hex');
+
+    var download_url = url.parse('http://' + req.hostname + ':' + config.port);
+    download_url.pathname = 'download';
+    download_url.search = 'filekey=' + filekey;
+
+    console.log('file: ' + filekeyToPath(filekey));
+    is.on('end', function () {
+      hash.end();
+      res.json({
+        url: url.format(download_url),
+        sha1: hash.read()
+      });
     });
+    is.pipe(hash);
   });
 
-  //form.on('file', function(name, file) {
-  //  var tmp_path = file.path;
-  //  filekey = crypto.createHash('md5').update(file.originalFilename + (new Date().getTime()) + req.ip).digest('hex');
-  //  console.log('File key created: ' + filekey);
-  //  var target_path = filekeyToPath(filekey);
-
-  //  console.log('Moving ' + tmp_path + ' to ' + target_path + '...');
-  //  redis_client.set('file_name:' + filekey, file.originalFilename);
-  //  var is = fs.createReadStream(tmp_path);
-  //  var os = fs.createWriteStream(target_path);
-  //  is.pipe(os);
-  //  is.on('end', function() {
-  //    fs.unlinkSync(tmp_path);
-  //  });
-  //});
-
-  //form.on('close', function() {
-  //  console.log('Upload complete! ' + filekey);
-  //  res.set('Content-Type', 'text/plain');
-  //  var download_url = url.parse('http://' + req.hostname + ':' + config.port);
-  //  download_url.pathname = 'download';
-  //  download_url.search = 'filekey=' + filekey;
-  //  console.log('download_url: ' + url.format(download_url));
-
-  //  console.log('Generating sha1 of ' + filekeyToPath(filekey));
-  //  var target_file = filekeyToPath(filekey);
-  //  console.log('target: ' + target_file);
-  //  console.log('target size: ' + fs.statSync(target_file).size);
-  //  var is = fs.createReadStream(target_file);
-  //  var hash = crypto.createHash('sha1');
-  //  hash.setEncoding('hex');
-  //  //var out = '';
-  //  //is.on('data', function (d) {
-  //  //  console.log('data: ' + d);
-  //  //  out += d.read().toString();
-  //  //});
-  //  is.on('end', function() {
-  //    //hash.write("\n");
-  //    hash.end();
-  //    res.json({
-  //      url: url.format(download_url),
-  //      sha1: hash.read()
-  //    });
-  //  });
-  //  is.pipe(hash);
-  //});
-
-  form.parse(req);
+  req.pipe(bb);
 });
 
 
