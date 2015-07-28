@@ -5,6 +5,7 @@ var redis = require('redis');
 var crypto = require('crypto');
 var url = require('url');
 var path = require('path');
+var async = require('async');
 var Busboy = require('busboy');
 
 var app = express();
@@ -17,6 +18,18 @@ app.get('/', function (req, res) {
 function filekeyToPath(filekey) {
   return path.join(config.storage_dir, filekey);
 }
+
+app.get('/stat', function (req, res) {
+  redis_client.get('sha1:' + req.query.filekey, function(err, reply) {
+    if (reply) {
+      res.json({
+        sha1: reply
+      });
+    } else {
+      res.status(400).end();
+    }
+  });
+});
 
 app.get('/download', function (req, res) {
   var filekey = req.query.filekey;
@@ -44,8 +57,15 @@ app.get('/download', function (req, res) {
 
   res.writeHead(200, head);
 
-  var is = fs.createReadStream(file_path);
-  is.pipe(res);
+  var d = require('domain').create();
+  d.on('error', function (err) {
+    console.log("Failed to decrypt");
+  });
+
+  d.run(function(){
+    var decipher = crypto.createDecipher('aes-256-cbc', 'password');
+    fs.createReadStream(file_path).pipe(decipher).pipe(res);
+  });
 });
 
 app.post('/upload', function (req, res) {
@@ -60,29 +80,28 @@ app.post('/upload', function (req, res) {
     redis_client.set('file_name:' + filekey, target_path);
 
     console.log('Uploading...');
-    file.pipe(fs.createWriteStream(target_path));
-    console.log('Finished uploading');
-  });
-
-  bb.on('finish', function () {
-    var is = fs.createReadStream(filekeyToPath(filekey));
+    var cipher = crypto.createCipher('aes-256-cbc', 'password');
+    file.pipe(cipher).pipe(fs.createWriteStream(target_path));
 
     var hash = crypto.createHash('sha1');
     hash.setEncoding('hex');
-
-    var download_url = url.parse('http://' + req.hostname + ':' + config.port);
-    download_url.pathname = 'download';
-    download_url.search = 'filekey=' + filekey;
-
-    console.log('file: ' + filekeyToPath(filekey));
-    is.on('end', function () {
+    file.on('end', function () {
       hash.end();
+      var hash_val = hash.read();
+      redis_client.set('sha1:' + filekey, hash_val);
+
+      var download_url = url.parse('http://' + req.hostname + ':' + config.port);
+      download_url.pathname = 'download';
+      download_url.search = 'filekey=' + filekey;
+
       res.json({
         url: url.format(download_url),
-        sha1: hash.read()
+        sha1: hash_val
       });
     });
-    is.pipe(hash);
+    file.pipe(hash);
+
+    console.log('Finished uploading');
   });
 
   req.pipe(bb);
