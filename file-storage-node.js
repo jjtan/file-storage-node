@@ -38,51 +38,47 @@ app.get('/download', function (req, res) {
   }
 
   var file_path = filekeyToPath(filekey);
-  var stat = fs.statSync(file_path);
-  console.log('Responding with ' + file_path + ' (size: ' + stat.size + ')');
-
-  var head = {
-    'Content-Length': stat.size,
-    'Content-Type': 'application/octet-stream',
-  };
-
   var redis_key = 'file_name:' + filekey;
   redis_client.get(redis_key, function(err, reply) {
     if (reply) {
-      head['Content-Disposition'] = 'attachment; filename="' + reply + '"';
+      var head = {
+        'Content-Disposition': 'attachment; filename="' + reply + '"',
+        'Content-Type': 'application/octet-stream'
+      };
+
+      var d = require('domain').create();
+      d.on('error', function (err) {
+        console.log("Failed to read file or decrypt");
+        res.status(410).end();
+      });
+
+      d.run(function(){
+        var decipher = crypto.createDecipher('aes-256-cbc', 'password');
+        res.writeHead(200, head);
+        fs.createReadStream(file_path).pipe(decipher).pipe(res);
+      });
     } else {
-      console.error('Error while getting redis key ' + redis_key);
+      console.error('Error while trying to obtain file name with filekey ' + redis_key);
+      res.status(410).end();
     }
-  });
-
-  res.writeHead(200, head);
-
-  var d = require('domain').create();
-  d.on('error', function (err) {
-    console.log("Failed to decrypt");
-  });
-
-  d.run(function(){
-    var decipher = crypto.createDecipher('aes-256-cbc', 'password');
-    fs.createReadStream(file_path).pipe(decipher).pipe(res);
   });
 });
 
 app.post('/upload', function (req, res) {
   var filekey = '';
   var bb = new Busboy({ headers: req.headers });
-  
+
   bb.on('file', function(fieldname, file, filename, encoding, mimetype) {
-    console.log('busboy: ' + fieldname + ' ' + filename + ' ' + encoding + ' ' + mimetype);
+    console.log('File received: ' + fieldname + ' ' + filename + ' ' + encoding + ' ' + mimetype);
     filekey = crypto.createHash('md5').update(filename + (new Date().getTime()) + req.ip).digest('hex');
     var target_path = filekeyToPath(filekey);
-    
-    redis_client.set('file_name:' + filekey, target_path);
+    redis_client.set('file_name:' + filekey, filename);
 
-    console.log('Uploading...');
+    console.log('Encrypting and storing at ' + target_path);
     var cipher = crypto.createCipher('aes-256-cbc', 'password');
     file.pipe(cipher).pipe(fs.createWriteStream(target_path));
 
+    console.log('Generating hash...');
     var hash = crypto.createHash('sha1');
     hash.setEncoding('hex');
     file.on('end', function () {
@@ -94,7 +90,7 @@ app.post('/upload', function (req, res) {
       download_url.pathname = 'download';
       download_url.search = 'filekey=' + filekey;
 
-      res.json({
+      res.status(201).json({
         url: url.format(download_url),
         sha1: hash_val
       });
