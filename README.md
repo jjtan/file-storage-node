@@ -30,21 +30,21 @@ Start the app: node file-storage-node.js
 
 ## API
 
-### /upload (POST)
+### POST /upload
 
 Used to upload a file via a multipart form request. Response is JSON containing the download URL.
 
 Example: curl -v -F file=@/tmp/test2.txt -F password=password https://localhost:3000/upload
 
-### /upload_form.html
+### GET /upload_form.html
 
 A static html file providing a form that will hit /upload
 
-### /download?filekey=\[filekey\]&password=\[password\] (GET)
+### GET /download?filekey=\[filekey\]&password=\[password\]
 
 Used to download a previously uploaded file, replace \[filekey\] with the filekey and \[password\] with the password.  
 
-### /stat?filekey=\[filekey\] (GET)
+### GET /stat?filekey=\[filekey\]
 
 Used to get statistics for the uploaded file. Response is JSON. Currently supports the file's sha1.
 
