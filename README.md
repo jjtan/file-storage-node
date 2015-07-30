@@ -1,5 +1,5 @@
 # file-storage-node
-### Author: JJ
+##### Author: JJ
 
 This app may be used to share files via a url. A user may upload a file with a password and get a corresponding URL. He may then share the URL and password with a separate user who can perform a query to the server to download the uploaded file.
 
@@ -30,7 +30,7 @@ Start the app: node file-storage-node.js
 
 ## API
 
-### /upload
+### /upload (POST)
 
 Used to upload a file via a multipart form request. Response is JSON containing the download URL.
 
@@ -40,16 +40,15 @@ Example: curl -v -F file=@/tmp/test2.txt -F password=password https://localhost:
 
 A static html file providing a form that will hit /upload
 
-### /download?filekey=[filekey]&password=[password]
+### /download?filekey=[filekey]&password=[password] (GET)
 
 Used to download a previously uploaded file, replace [filekey] with the filekey and [password] with the password.  
 
-#### /stat?filekey=[filekey]
+### /stat?filekey=[filekey] (GET)
 
 Used to get statistics for the uploaded file. Response is JSON. Currently supports the file's sha1.
 
 ## TODO
- - Use SSL
  - After we have SSL, change /download to a POST request
  - Write clean up script to delete files older than 1 day.
 
