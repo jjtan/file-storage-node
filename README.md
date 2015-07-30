@@ -26,6 +26,7 @@ Install either using your package manager or check out https://nodejs.org/
 To install all Node.js dependencies run (in the project root): npm install 
 
 Start redis by: redis-server
+
 Start the app: node file-storage-node.js
 
 ## API
@@ -50,7 +51,10 @@ Used to get statistics for the uploaded file. Response is JSON. Currently suppor
 
 ## TODO
  - After we have SSL, change /download to a POST request
- - Write clean up script to delete files older than 1 day.
+ - Write clean up script to delete files older than 1 day - we can do this by just checking the file's timestamp. (Redis already expires data after a day.)
 
+## Scalability
+ - The existing implementation should be able to handle multiple uploads and downloads at once unless we end up with the same filekey (right now a md5sum of the file name, uploader ip and time). This problem can be solved by doing a quick check with Redis to see if a filekey is in use. To scale further we can spin up multiple machines (load balanced) with a shared file system (maybe nfs? but I bet there are better technologies out there) or we could move file storage off to some central machine (or even a cluster with replication), at which point our concern will be with our network as our frontends hit our file servers.
+ - Large files have not been sufficiently tested on this app, but work will need to happen to properly support large file downloads so that we can resume from a partial download in the case of a broken connection. The user should be able to specify from what to what byte they would like.
 
 
