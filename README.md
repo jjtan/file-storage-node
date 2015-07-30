@@ -43,7 +43,7 @@ A static html file providing a form that will hit /upload
 
 ### GET /download?filekey=\[filekey\]&password=\[password\]
 
-Used to download a previously uploaded file, replace \[filekey\] with the filekey and \[password\] with the password.  
+Used to download a previously uploaded file, replace \[filekey\] with the filekey and \[password\] with the password. The /stat endpoint should be used to verify the sha1 of the file.
 
 ### GET /stat?filekey=\[filekey\]
 
@@ -56,5 +56,10 @@ Used to get statistics for the uploaded file. Response is JSON. Currently suppor
 ## Scalability
  - The existing implementation should be able to handle multiple uploads and downloads at once unless we end up with the same filekey (right now a md5sum of the file name, uploader ip and time). This problem can be solved by doing a quick check with Redis to see if a filekey is in use. To scale further we can spin up multiple machines (load balanced) with a shared file system (maybe nfs? but I bet there are better technologies out there) or we could move file storage off to some central machine (or even a cluster with replication), at which point our concern will be with our network as our frontends hit our file servers.
  - Large files have not been sufficiently tested on this app, but work will need to happen to properly support large file downloads so that we can resume from a partial download in the case of a broken connection. The user should be able to specify from what to what byte they would like.
+
+## Resiliency
+ - Work needs to be done here too. At the moment we return a relevant status code but we could improve error responses. More testing of error cases needs to be done here too.
+ - There are possible race conditions because of redis expiring data and the unimplemented file clean up script. The idea is to return 410 (resource gone) in all these cases. I believe this is implemented, but more testing it necessary.
+ - I also want to make asynchronous the file encryption and sha1 generation. This will allow for faster responses but the trade off is that a user could upload a file and share the download link and the link won't work (yet). This is a design decision.
 
 
