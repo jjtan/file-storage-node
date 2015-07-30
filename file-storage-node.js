@@ -11,7 +11,7 @@ var app = express();
 var redis_client = redis.createClient();
 
 app.get('/', function (req, res) {
-  res.send('Hello World!');
+  res.send('Hi, you can go to /upload_form.html, /stat, /upload, /download!');
 });
 
 function filekeyToPath(filekey) {
@@ -21,9 +21,6 @@ function filekeyToPath(filekey) {
 function passwordHash(password) {
   return crypto.createHash('sha1').update(password).digest('hex'); // update and digest should be updated
 }
-
-app.get('/form', function (req, res) {
-});
 
 app.get('/stat', function (req, res) {
   redis_client.hgetall('filekey:' + req.query.filekey, function(err, reply) {
@@ -113,7 +110,7 @@ app.post('/upload', function (req, res) {
               fs.unlink(file.path);
               var download_url = url.parse('http://' + req.hostname + ':' + config.port);
               download_url.pathname = 'download';
-              download_url.search = 'filekey=' + filekey;
+              download_url.search = 'filekey=' + filekey + '&password=[password]';
               cb(null, url.format(download_url));
             });
             file_to_encrypt.pipe(cipher).pipe(fs.createWriteStream(target_path));
@@ -127,6 +124,8 @@ app.post('/upload', function (req, res) {
     });
   });
 });
+
+app.use(express.static('./public'));
 
 var server = app.listen(config.port, function () {
   var host = server.address().address;
