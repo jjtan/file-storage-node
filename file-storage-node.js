@@ -9,7 +9,7 @@ var async = require('async');
 var formidable = require('formidable');
 var app = express();
 
-var redis_url = ur.parse(process.env.REDISCLOUD_URL);
+var redis_url = url.parse(process.env.REDISCLOUD_URL);
 var redis_client = redis.createClient(redisURL.port, redisURL.hostname, {no_read_check:true});
 redis_client.auth(redisURL.auth.split(":")[1]);
 
