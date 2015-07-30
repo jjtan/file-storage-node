@@ -10,8 +10,8 @@ var formidable = require('formidable');
 var app = express();
 
 var redis_url = url.parse(process.env.REDISCLOUD_URL);
-var redis_client = redis.createClient(redisURL.port, redisURL.hostname, {no_read_check:true});
-redis_client.auth(redisURL.auth.split(":")[1]);
+var redis_client = redis.createClient(redis_url.port, redis_url.hostname, {no_read_check:true});
+redis_client.auth(redis_url.auth.split(":")[1]);
 
 app.get('/', function (req, res) {
   res.send('Hi, you can go to /upload_form.html, /stat, /upload, /download!');
