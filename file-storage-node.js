@@ -9,9 +9,14 @@ var async = require('async');
 var formidable = require('formidable');
 var app = express();
 
-var rtg = url.parse(process.env.REDISTOGO_URL);
-var redis_client = redis.createClient(rtg.port, rtg.hostname);
-redis_client.auth(rtg.auth.split(":")[1]);
+var redis_client;
+if (process.env.REDISTOGO_URL) {
+  var rtg = url.parse(process.env.REDISTOGO_URL);
+  redis_client = redis.createClient(rtg.port, rtg.hostname);
+  redis_client.auth(rtg.auth.split(":")[1]);
+} else {
+  redis_client = redis.createClient();
+}
 
 app.get('/', function (req, res) {
   res.send('Hi, you can go to /upload_form.html, /stat, /upload, /download!');
@@ -47,7 +52,7 @@ app.get('/download', function (req, res) {
       if (!fk) {
         res.status(410).end(); // resource gone
       } else if (passwordHash(provided_password) != fk.password_hash) {
-        res.status(403).end(); // forbidden
+        res.status(401).end(); // unauthorized
       } else {
         var head = {
           'Content-Disposition': 'attachment; filename="' + fk.file_name + '"',
@@ -112,18 +117,19 @@ app.post('/upload', function (req, res) {
             file_to_encrypt = fs.createReadStream(file.path);
             file_to_encrypt.on('end', function() {
               fs.unlink(file.path);
-              var download_url = url.parse('http://' + req.hostname + ':' + config.port);
-              download_url.pathname = 'download';
-              download_url.search = 'filekey=' + filekey + '&password=[password]';
-              cb(null, url.format(download_url));
+              cb(null, filekey);
             });
             file_to_encrypt.pipe(cipher).pipe(fs.createWriteStream(target_path));
           });
         }
     ],
-    function (err, download_url) {
+    function (err, filekey) {
+      var download_url = url.parse('http://' + req.hostname + ':' + config.port);
+      download_url.pathname = 'download';
+      download_url.search = 'filekey=' + filekey + '&password=[password]';
       res.status(201).json({
-        url: download_url
+        url: url.format(download_url),
+        filekey: filekey
       });
     });
   });
