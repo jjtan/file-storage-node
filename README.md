@@ -40,11 +40,11 @@ Example: curl -v -F file=@/tmp/test2.txt -F password=password https://localhost:
 
 A static html file providing a form that will hit /upload
 
-### /download?filekey=[filekey]&password=[password] (GET)
+### /download?filekey=\[filekey\]&password=\[password\] (GET)
 
-Used to download a previously uploaded file, replace [filekey] with the filekey and [password] with the password.  
+Used to download a previously uploaded file, replace \[filekey\] with the filekey and \[password\] with the password.  
 
-### /stat?filekey=[filekey] (GET)
+### /stat?filekey=\[filekey\] (GET)
 
 Used to get statistics for the uploaded file. Response is JSON. Currently supports the file's sha1.
 
