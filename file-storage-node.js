@@ -8,7 +8,10 @@ var path = require('path');
 var async = require('async');
 var formidable = require('formidable');
 var app = express();
-var redis_client = redis.createClient();
+
+var redis_url = ur.parse(process.env.REDISCLOUD_URL);
+var redis_client = redis.createClient(redisURL.port, redisURL.hostname, {no_read_check:true});
+redis_client.auth(redisURL.auth.split(":")[1]);
 
 app.get('/', function (req, res) {
   res.send('Hi, you can go to /upload_form.html, /stat, /upload, /download!');
