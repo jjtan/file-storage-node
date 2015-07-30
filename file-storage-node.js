@@ -100,6 +100,7 @@ app.post('/upload', function (req, res) {
                 'password_hash': passwordHash(password),
                 'file_type': file.type
               });
+              redis_client.expire('filekey:' + filekey, 60 * 60 * 24); // expire key in a day
             });
             tmp_file.pipe(hash);
 
