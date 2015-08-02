@@ -10,10 +10,10 @@ var formidable = require('formidable');
 var app = express();
 
 var redis_client;
-if (process.env.REDISTOGO_URL) {
-  var rtg = url.parse(process.env.REDISTOGO_URL);
-  redis_client = redis.createClient(rtg.port, rtg.hostname);
-  redis_client.auth(rtg.auth.split(":")[1]);
+if (process.env.REDIS_URL) {
+  var redis_url = url.parse(process.env.REDIS_URL);
+  redis_client = redis.createClient(redis_url.port, redis_url.hostname);
+  redis_client.auth(redis_url.auth.split(":")[1]);
 } else {
   redis_client = redis.createClient();
 }
